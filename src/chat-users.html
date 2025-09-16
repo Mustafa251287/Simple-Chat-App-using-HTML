@@ -2,32 +2,40 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0,user-scalable=no">
   <title>Chat List</title>
   <style>
     body {
       margin: 0;
       font-family: Arial, sans-serif;
       background: #fff;
+      width:99%;
+      background:white;
+      
     }
 
     .container {
-      width: 96%;
+      width: 100%;
       margin: 0px;
-      height: 100vh;
+      height: 100dvh;
       display: flex;
       flex-direction: column;
+      background:white;
+      
     }
 
     /* Search bar */
     .search-bar {
+    background:white;
       padding: 10px;
       border-bottom: 1px solid #ddd;
     }
 
     .search-bar input {
       width: 100%;
-      padding: 10px;
+      padding-top: 10px;
+      padding-bottom:10px;
+      padding-left:0px;
       border-radius: 20px;
       border: 1px solid #ccc;
       font-size: 14px;
@@ -81,12 +89,16 @@
     }
     
     .fab-container {
-    position: relative;
-    bottom: 30px;
+    position: fixed;
+    bottom: 20px;
     width: 100%;
     display: flex;
  justify-content:space-between;
-    padding: 0 20px;
+    padding:0px 10px;
+    background:transparent;
+    box-sizing:border-box;
+    z-index:9999;
+    
     }
     
     .fab {
@@ -108,12 +120,12 @@
     
     .fab-left {
 	
-    left: 20px;
+    margin-left: 0px;
 	
     }
     
     .fab-right {
-    right:10px;
+    margin-right:0px;
     background: #28a745; /* Green for reload */
     }
     
@@ -519,6 +531,15 @@
   closeUserChatsListener();
   });
   
+window.goback=function(){
+
+if(confirm("Do you want to exit App?")){
+
+myandroid.exit();
+}
+
+
+}
   
   function tost(status,title,message){
 	const validStatuses = ["success", "error", "info", "warning"];
