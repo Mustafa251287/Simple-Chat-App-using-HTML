@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ChatApp – Auth</title>
+  <style>
+  
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #fff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+    .container {
+      width: 83%;
+      max-width: 420px;
+      padding: 20px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      background: #fff;
+	  position:relative;
+    }
+    .tabs {
+      display: flex;
+      border-bottom: 1px solid #ddd;
+      margin-bottom: 20px;
+    }
+    .tab {
+      flex: 1;
+      text-align: center;
+      padding: 10px;
+      cursor: pointer;
+      font-weight: bold;
+      color: #555;
+    }
+    .tab.active {
+      color: #25d366;
+      border-bottom: 2px solid #25d366;
+    }
+    label {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 14px;
+      color: #333;
+    }
+    input {
+      width: 80%;
+      padding: 10px;
+      margin-bottom: 15px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+    button {
+      width: 80%;
+      padding: 12px;
+      background: #25d366;
+      border: none;
+      border-radius: 6px;
+      font-size: 16px;
+      font-weight: bold;
+      color: white;
+      cursor: pointer;
+    }
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    .error {
+      font-size: 13px;
+      color: red;
+      margin-top: -10px;
+      margin-bottom: 10px;
+      display: none;
+    }
+    .form { display: none; }
+    .form.active { display: block; }
+    
+    h2 {
+    
+    }
+	
+	.spinner {
+   width: 30px;
+  height: 30px;
+  border: 4px solid rgba(0, 0, 0, 0.1);
+  border-left-color: #3498db;
+  border-radius: 50%;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  animation: spin 1s linear infinite;
+  z-index: 10;
+  display:none;
+}
+
+@keyframes spin {
+     0% {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+  100% {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+  </style>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/css/toastr.min.css">
+
+</head>
+<body>
+  <div class="container">
+  <!--spinner-->
+  <div class="spinner" id="myspinner">
+</div>
+    <!-- Tabs -->
+    <div class="tabs">
+      <div class="tab active" data-target="loginForm">Login</div>
+      <div class="tab" data-target="signupForm">Sign Up</div>
+    </div>
+
+    <!-- Login Form -->
+    <form id="loginForm" class="form active" novalidate>
+      <label for="loginEmail">Email</label>
+      <input type="email" id="loginEmail" required placeholder="you@example.com">
+      <div class="error" id="loginEmailError">Enter a valid email</div>
+
+      <label for="loginPassword">Password</label>
+      <input type="password" id="loginPassword" required placeholder="Your password">
+      <div class="error" id="loginPasswordError">Password required</div>
+
+      <button type="submit" id="loginBtn" disabled>Login</button>
+    </form>
+
+    <!-- Signup Form -->
+    <form id="signupForm" class="form" novalidate>
+      <label for="signupName">Full Name</label>
+      <input type="text" id="signupName" required placeholder="Your name">
+      <div class="error" id="signupNameError">Enter at least 2 characters</div>
+
+      <label for="signupEmail">Email</label>
+      <input type="email" id="signupEmail" required placeholder="you@example.com">
+      <div class="error" id="signupEmailError">Enter a valid email</div>
+
+      <label for="signupPassword">Password</label>
+      <input type="password" id="signupPassword" required placeholder="Minimum 6 characters">
+      <div class="error" id="signupPasswordError">Password too short</div>
+
+      <label for="signupConfirm">Confirm Password</label>
+      <input type="password" id="signupConfirm" required placeholder="Re-enter password">
+      <div class="error" id="signupConfirmError">Passwords do not match</div>
+
+      <button type="submit" id="signupBtn" disabled>Sign Up</button>
+    </form>
+	
+  </div>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/js/toastr.min.js"></script>
+
+  <script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+  import {getFirestore,collection,getDocs,setDoc,onSnapshot,addDoc,deleteDoc, doc,getDoc,updateDoc,query,where,serverTimestamp} from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+  
+  window.toastr.options = {
+  "closeButton": false,
+  "debug": true,
+  "newestOnTop": true,
+  "progressBar": true,
+  "positionClass": "toast-top-center",
+  "preventDuplicates": true,
+  "showDuration": "300",
+  "hideDuration": "1000",
+  "timeOut": "3500",
+  "extendedTimeOut": "1000",
+  "showEasing": "swing",
+  "hideEasing": "linear",
+  "showMethod": "fadeIn",
+  "hideMethod": "fadeOut"
+}
+
+console.log(window.toastr);
+  const firebaseConfig = {
+  apiKey: "AIzaSyCwR-RFmVdl7gI6mzKgrbATSWruxoe9iAI",
+  authDomain: "printflow-1a422.firebaseapp.com",
+  projectId: "printflow-1a422",
+  storageBucket: "printflow-1a422.appspot.com",
+  messagingSenderId: "254878658055",
+  appId: "1:254878658055:web:b037d34cd93bd686e144a2",
+  measurementId: "G-06XB2WSVD9"
+  };
+  
+  window.addEventListener('load',()=>{
+  if(localStorage.getItem('uid')){
+  var test=localStorage.getItem('uid');
+  goToChatPage(test);
+  }
+  
+  });
+  
+  const app=initializeApp(firebaseConfig);
+  const db=getFirestore(app);
+  const myspinner=document.getElementById('myspinner');
+  
+    // Tab switching
+    const tabs = document.querySelectorAll(".tab");
+    const forms = document.querySelectorAll(".form");
+    tabs.forEach(tab => {
+      tab.addEventListener("click", () => {
+        tabs.forEach(t => t.classList.remove("active"));
+        forms.forEach(f => f.classList.remove("active"));
+        tab.classList.add("active");
+        document.getElementById(tab.dataset.target).classList.add("active");
+      });
+    });
+
+    // Email regex
+    const validEmail = v => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v);
+
+    // ---- Login Validation ----
+    const loginEmail = document.getElementById("loginEmail");
+    const loginPassword = document.getElementById("loginPassword");
+    const loginBtn = document.getElementById("loginBtn");
+    const loginEmailError = document.getElementById("loginEmailError");
+    const loginPasswordError = document.getElementById("loginPasswordError");
+
+    function validateLogin() {
+      let valid = true;
+      if (!validEmail(loginEmail.value)) { loginEmailError.style.display = "block"; valid = false; } 
+      else { loginEmailError.style.display = "none"; }
+      if (!loginPassword.value.trim()) { loginPasswordError.style.display = "block"; valid = false; } 
+      else { loginPasswordError.style.display = "none"; }
+      loginBtn.disabled = !valid;
+      return valid;
+    }
+    [loginEmail, loginPassword].forEach(el => el.addEventListener("input", validateLogin));
+    document.getElementById("loginForm").addEventListener("submit", e => {
+      e.preventDefault();
+      if (!validateLogin()) 
+      return;
+      
+      loginUser(loginEmail.value,loginPassword.value.trim());
+     // alert("Logged in with: " + loginEmail.value);
+      e.target.reset();
+      
+    });
+
+    // ---- Signup Validation ----
+    const signupName = document.getElementById("signupName");
+    const signupEmail = document.getElementById("signupEmail");
+    const signupPassword = document.getElementById("signupPassword");
+    const signupConfirm = document.getElementById("signupConfirm");
+    const signupBtn = document.getElementById("signupBtn");
+    const signupNameError = document.getElementById("signupNameError");
+    const signupEmailError = document.getElementById("signupEmailError");
+    const signupPasswordError = document.getElementById("signupPasswordError");
+    const signupConfirmError = document.getElementById("signupConfirmError");
+
+    function validateSignup() {
+      let valid = true;
+      if (signupName.value.trim().length < 2) { signupNameError.style.display = "block"; valid = false; } 
+      else { signupNameError.style.display = "none"; }
+      if (!validEmail(signupEmail.value)) { signupEmailError.style.display = "block"; valid = false; } 
+      else { signupEmailError.style.display = "none"; }
+      if (signupPassword.value.length < 6) { signupPasswordError.style.display = "block"; valid = false; } 
+      else { signupPasswordError.style.display = "none"; }
+      if (signupPassword.value !== signupConfirm.value || !signupConfirm.value) { signupConfirmError.style.display = "block"; valid = false; } 
+      else { signupConfirmError.style.display = "none"; }
+      signupBtn.disabled = !valid;
+      return valid;
+    }
+    
+    
+    
+    [signupName, signupEmail, signupPassword, signupConfirm].forEach(el => el.addEventListener("input", validateSignup));
+    document.getElementById("signupForm").addEventListener("submit", e => {
+      e.preventDefault();
+      if (!validateSignup()) 
+      return;
+      
+     // alert("Signed up as: " + signupName.value + " (" + signupEmail.value + ")");
+     registerUser(signupName.value.trim(),signupEmail.value,signupPassword.value);
+      e.target.reset();
+      
+    });
+
+    
+    function simpleHash(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+    hash = (hash << 5) - hash + str.charCodeAt(i);
+    hash |= 0;
+    }
+    return hash.toString();
+    }
+    
+    async function registerUser(name, email, password) {
+    try {
+	getSpinner(1);
+    const usersRef = collection(db, "users");
+    
+    // 1. Check if user already exists
+    const q = query(usersRef, where("email", "==", email));
+    const querySnapshot = await getDocs(q);
+    
+    if (!querySnapshot.empty) {
+	getSpinner(0);
+    //alert("User " + email + " already Registered");
+	tost('info','Error','User Already Exist');
+    return { success: false, message: "Email already exists" };
+    }
+    
+    // 2. Hash password
+    const hashedPassword = simpleHash(password);
+    
+    // 3. Add user document
+    const docRef = await addDoc(usersRef, {
+    name: name,
+    email: email,
+    password: hashedPassword,
+    createdAt: serverTimestamp()
+    });
+    
+    const uid = docRef.id;
+    getSpinner(0);
+    // 4. Store UID in localStorage
+    localStorage.setItem("uid", uid);
+    
+    //alert("Registered Successfully. Login to access.");
+	tost('success','Registration','Registered Successfully, Login to access');
+    return uid;
+    
+    } catch (error) {
+    console.error("Error adding user: ", error);
+    throw error;
+    }
+    }
+    
+    async function loginUser(email, password) {
+    const hashedPassword = simpleHash(password);
+    getSpinner(1);
+    try {
+    // 1. Query Firestore for matching email & password
+    const usersRef = collection(db, "users");
+    const q = query(usersRef, 
+    where("email", "==", email), 
+    where("password", "==", hashedPassword)
+    );
+    
+    const querySnapshot = await getDocs(q);
+    
+    if (!querySnapshot.empty) {
+    // 2. User found
+    const userDoc = querySnapshot.docs[0];
+    const uid = userDoc.id;
+    getSpinner(0);
+	
+    // 3. Save UID in localStorage
+    localStorage.setItem("uid", uid);
+    
+    tost('success','WebChat','Login Successful');
+     setTimeout(() => {
+      goToChatPage(uid);  // or window.location.href = 'chat.html';
+      }, 3000);    
+	// <-- make sure this function exists
+    return uid;
+    } else {
+	getSpinner(0);
+    // No matching user
+    //alert("User doesn't exist ❌");
+	tost('error','Error',"User with this email and password Doesn't exist");
+    return null;
+    }
+    } catch (error) {
+    console.error("Error logging in:", error);
+    throw error;
+    }
+    }
+    
+    
+    function goToChatPage(uid) {
+    // Redirect to chat.html with uid in URL
+    window.location.href = `chat-users.html?uid=${uid}`;
+    }
+    
+	function getSpinner(n){
+	if(n==0){
+	myspinner.style.display="none";
+	return;
+	} 
+	myspinner.style.display="block";
+	}
+	
+	function tost(status,title,message){
+	const validStatuses = ["success", "error", "info", "warning"];
+
+  if (!validStatuses.includes(status)) {
+    console.warn(`Invalid toastr status: ${status}. Falling back to "info".`);
+    status = "info";
+  }
+	window.toastr[status](message,title);
+	
+	
+	}
+  </script>
+  
+</body>
+</html>
