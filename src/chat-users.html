@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chat List</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #fff;
+    }
+
+    .container {
+      width: 96%;
+      margin: 0px;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Search bar */
+    .search-bar {
+      padding: 10px;
+      border-bottom: 1px solid #ddd;
+    }
+
+    .search-bar input {
+      width: 100%;
+      padding: 10px;
+      border-radius: 20px;
+      border: 1px solid #ccc;
+      font-size: 14px;
+      outline: none;
+    }
+
+    /* Chat list */
+    .chat-list {
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    .chat-item {
+      display: flex;
+      align-items: center;
+      padding: 15px;
+      border-bottom: 1px solid #f0f0f0;
+      cursor: pointer;
+    }
+
+    .chat-item:hover {
+      background: #f9f9f9;
+    }
+
+    .chat-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: #007bff;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      margin-right: 12px;
+    }
+
+    .chat-details {
+      flex: 1;
+    }
+
+    .chat-name {
+      font-weight: bold;
+      font-size: 15px;
+      color: #333;
+    }
+
+    .chat-email {
+      font-size: 13px;
+      color: #777;
+    }
+    
+    .fab-container {
+    position: relative;
+    bottom: 30px;
+    width: 100%;
+    display: flex;
+ justify-content:space-between;
+    padding: 0 20px;
+    }
+    
+    .fab {
+    background: #007bff;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 56px;
+    height: 56px;
+    font-size: 24px;
+    cursor: pointer;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+    transition: transform 0.2s;
+    }
+    
+    .fab:hover {
+    transform: scale(1.1);
+    }
+    
+    .fab-left {
+	
+    left: 20px;
+	
+    }
+    
+    .fab-right {
+    right:10px;
+    background: #28a745; /* Green for reload */
+    }
+    
+    #chatList {
+    display: flex;
+    flex-direction: column;
+    }
+    
+    .chat-item {
+    display: flex;
+    align-items: center;
+    padding: 12px 15px;
+    border-bottom: 1px solid #ddd;
+    cursor: pointer;
+    background-color: #fff;
+    transition: background 0.2s;
+    }
+    
+    .chat-item:hover {
+    background-color: #f0f0f0;
+    }
+    
+    .chat-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #25d366; /* WhatsApp green */
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    margin-right: 12px;
+    }
+    
+    .chat-details {
+    flex: 1;
+    }
+    
+    .chat-name {
+    font-size: 16px;
+    font-weight: 600;
+    color: #111;
+    }
+    
+    .chat-email {
+    font-size: 13px;
+    color: gray;
+    }
+    
+   .chat-unread {
+   width: 20px;
+   height: 20px;
+   background: #25d366;
+   color: white;
+   font-size: 12px;
+   font-weight: bold;
+   border-radius: 50%;
+   display: flex;
+   align-items: center;
+   justify-content: center;
+   }
+  </style>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/css/toastr.min.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Search bar -->
+    <div class="search-bar">
+      <input type="text" id="searchInput" placeholder="Search by email...">
+    </div>
+
+    <!-- Chat list -->
+    <div class="chat-list" id="chatList">
+      <!-- Example items (replace with Firebase data) 
+      <div class="chat-item">
+        <div class="chat-avatar">A</div>
+        <div class="chat-details">
+          <div class="chat-name">Alice</div>
+          <div class="chat-email">alice@mail.com</div>
+        </div>
+        <div class="chat-unread">9</div>
+      </div>
+
+      <div class="chat-item">
+        <div class="chat-avatar">B</div>
+        <div class="chat-details">
+          <div class="chat-name">Bob</div>
+          <div class="chat-email">bob@mail.com</div>
+        </div>
+        <div class="chat-unread">1</div>
+      </div>-->
+    </div>
+<!-- Floating Buttons -->
+<div class="fab-container">
+  <!-- Search button -->
+  
+
+  <!-- Reload button -->
+  <button id="reloadBtn" class="fab fab-left"><span class="material-symbols-outlined">refresh</span></button>
+  <button id="searchBtn" class="fab fab-right"><span class="material-symbols-outlined">search</span></button>
+</div>
+</div>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/js/toastr.min.js"></script>
+  <script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+  import {
+  getFirestore,
+  collection,
+  getDocs,
+  getDoc,
+  doc,
+  addDoc,
+  onSnapshot,
+  query,
+  where,
+  serverTimestamp,
+  updateDoc
+  } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+  
+  const firebaseConfig = {
+  apiKey: "AIzaSyCwR-RFmVdl7gI6mzKgrbATSWruxoe9iAI",
+  authDomain: "printflow-1a422.firebaseapp.com",
+  projectId: "printflow-1a422",
+  storageBucket: "printflow-1a422.appspot.com",
+  messagingSenderId: "254878658055",
+  appId: "1:254878658055:web:b037d34cd93bd686e144a2",
+  measurementId: "G-06XB2WSVD9"
+  };
+  
+   window.toastr.options = {
+  "closeButton": false,
+  "debug": true,
+  "newestOnTop": true,
+  "progressBar": true,
+  "positionClass": "toast-top-center",
+  "preventDuplicates": true,
+  "showDuration": "300",
+  "hideDuration": "1000",
+  "timeOut": "3500",
+  "extendedTimeOut": "1000",
+  "showEasing": "swing",
+  "hideEasing": "linear",
+  "showMethod": "fadeIn",
+  "hideMethod": "fadeOut"
+}
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  
+  /* DOM refs */
+  const searchInput = document.getElementById("searchInput");
+  const chatList = document.getElementById("chatList");
+  const reloadbtn = document.getElementById("reloadBtn");
+  const searchbtn = document.getElementById("searchBtn");
+  
+  /* ---------- GLOBALS ---------- */
+  // listener ref and first-run guard must be in module/global scope
+  let userChatsUnsubscribe = null;
+  let firstRun = true;
+  
+  /* ---------- UI helpers ---------- */
+  function updateUnread(value, chatId) {
+  const unreadEl = document.getElementById(`unread-${chatId}`);
+  if (!unreadEl) return;
+  if (!value || value === 0) {
+  unreadEl.style.display = "none";
+  unreadEl.textContent = "";
+  } else {
+  unreadEl.style.display = "flex";
+  unreadEl.textContent = String(value);
+  }
+  }
+  
+  function addUserToChatListUI(chatId, userData, unread = 0) {
+  // only create once
+  if (document.getElementById(`chat-${chatId}`)) return;
+  
+  const div = document.createElement("div");
+  div.className = "chat-item";
+  div.id = `chat-${chatId}`;
+  div.dataset.chatid = chatId;
+  div.innerHTML = `
+  <div class="chat-avatar">${userData.name?.[0]?.toUpperCase() || "U"}</div>
+  <div class="chat-details">
+  <div class="chat-name">${userData.name || "Unknown User"}</div>
+  <div class="chat-email">${userData.email || ""}</div>
+  </div>
+  <div class="chat-unread" id="unread-${chatId}" style="display: ${unread>0 ? 'flex' : 'none'}">${unread>0?unread:''}</div>
+  `;
+  
+  chatList.appendChild(div);
+  }
+  
+  /* ---------- Fetch & initial render ---------- */
+  async function getChatUsers(uid) {
+  try {
+  const chatsRef = collection(db, "chats");
+  const q = query(chatsRef, where("users", "array-contains", uid));
+  const querySnapshot = await getDocs(q);
+  
+  let chatResults = [];
+  chatList.innerHTML = "";
+  
+  for (let chatDoc of querySnapshot.docs) {
+  const chatData = chatDoc.data();
+  const chatId = chatDoc.id;
+  
+  // find other user(s) - for 1:1 chat we take the first other
+  const otherUid = (chatData.users || []).find(userId => userId !== uid);
+  if (!otherUid) continue;
+  
+  const userDoc = await getDoc(doc(db, "users", otherUid));
+  if (!userDoc.exists()) continue;
+  const userData = userDoc.data();
+  
+  // unread stored in chat doc as chatData.unread[uid] or similar
+  const unreadCounts = chatData.unread || {};
+  const myUnread = unreadCounts[uid] || 0;
+  
+  addUserToChatListUI(chatId, userData, myUnread);
+  
+  chatResults.push({ chatId, otherUid, otherData: userData });
+  }
+  
+  return chatResults;
+  } catch (error) {
+  console.error("Error getting chat users:", error);
+  return [];
+  }
+  }
+  
+  /* ---------- Create / find chat and return chatId ---------- */
+  async function searchAndCreateChat() {
+  const emailInput = document.getElementById("searchInput").value.trim();
+  if (!emailInput) {
+  //alert("Please enter an email");
+  tost('info','Error','Enter Email:');
+  return null;
+  }
+  
+  try {
+  const currentUid = getUidFromUrl();
+  
+  // find user by email
+  const usersRef = collection(db, "users");
+  const uq = query(usersRef, where("email", "==", emailInput));
+  const querySnapshot = await getDocs(uq);
+  
+  if (querySnapshot.empty) {
+  tost('error','Error','No user found with that email');
+  //alert("No user found with that email.");
+  return null;
+  }
+  
+  const userDoc = querySnapshot.docs[0];
+  const otherUid = userDoc.id;
+  const otherData = userDoc.data();
+  
+  if (otherUid === currentUid) {
+  tost('error','Error','You cannot chat with yourself');
+  //alert("You cannot chat with yourself.");
+  return null;
+  }
+  
+  // check existing chat
+  const chatsRef = collection(db, "chats");
+  const checkQ = query(chatsRef, where("users", "array-contains", currentUid));
+  const checkSnapshot = await getDocs(checkQ);
+  
+  let existingChatId = null;
+  checkSnapshot.forEach((d) => {
+  const users = d.data().users || [];
+  if (users.includes(otherUid)) existingChatId = d.id;
+  });
+  
+  if (existingChatId) {
+  tost('error','Error','Chat already Exist with this user');
+  //alert("Chat already exists with this user!");
+  return existingChatId;
+  }
+  
+  // create new chat
+  const chatData = {
+  users: [currentUid, otherUid],
+  createdAt: serverTimestamp(),
+  // initialize unread map; receiver has 0 unread initially
+  unread: {
+  [currentUid]: 0,
+  [otherUid]: 0
+  }
+  };
+  const newChatRef = await addDoc(chatsRef, chatData);
+  const newChatId = newChatRef.id;
+  tost('success','WebChat','Chat created Successfully');
+  //alert("Chat created successfully!");
+  // add to UI immediately
+  addUserToChatListUI(newChatId, otherData, 0);
+  
+  return newChatId;
+  } catch (error) {
+  console.error("Error creating chat:", error);
+  tost('error','WebChat','Unknown Error Occured');
+  //alert("Something went wrong.");
+  return null;
+  }
+  }
+  
+  /* ---------- Listener: user-chats (1 listener) ---------- */
+  function listenToUserChats(uid) {
+  // close previous if present
+  if (userChatsUnsubscribe) {
+  try { userChatsUnsubscribe(); } catch(e){/*ignore*/ }
+  userChatsUnsubscribe = null;
+  firstRun = true;
+  }
+  
+  const chatsRef = collection(db, "chats");
+  const q = query(chatsRef, where("users", "array-contains", uid));
+  
+  userChatsUnsubscribe = onSnapshot(q, async (snapshot) => {
+  // skip initial snapshot (we already loaded UI via getChatUsers once)
+  if (firstRun) {
+  firstRun = false;
+  console.log("Initial user-chats snapshot skipped");
+  return;
+  }
+  
+  // handle incremental changes only
+  for (const change of snapshot.docChanges()) {
+  const chatId = change.doc.id;
+  const chatData = change.doc.data();
+  
+  if (change.type === "added") {
+  // new chat created that involves this user
+  console.log("New chat added:", chatId);
+  const otherUid = (chatData.users || []).find(u => u !== uid);
+  if (!otherUid) continue;
+  const userDoc = await getDoc(doc(db, "users", otherUid));
+  if (!userDoc.exists()) continue;
+  addUserToChatListUI(chatId, userDoc.data(), chatData.unread?.[uid] || 0);
+  }
+  
+  if (change.type === "modified") {
+  // chat updated (e.g. unread changed or lastMessage)
+  console.log("Chat modified:", chatId);
+  const myUnread = (chatData.unread && chatData.unread[uid]) ? chatData.unread[uid] : 0;
+  updateUnread(myUnread, chatId);
+  }
+  
+  if (change.type === "removed") {
+  console.log("Chat removed:", chatId);
+  const el = document.getElementById(`chat-${chatId}`);
+  if (el) el.remove();
+  }
+  }
+  });
+  
+  console.log("User-chats listener set successfully");
+  }
+  
+  function closeUserChatsListener() {
+  if (userChatsUnsubscribe) {
+  try { userChatsUnsubscribe(); } catch (e) { /* ignore */ }
+  userChatsUnsubscribe = null;
+  firstRun = true;
+  console.log("User-chats listener closed");
+  }
+  }
+  
+  /* ---------- small helpers & UI wiring ---------- */
+  function getUidFromUrl() {
+  return localStorage.getItem('uid');
+  }
+  
+  /* click to open chat - uses data-chatid */
+  chatList.addEventListener('click', (e) => {
+  const chatItem = e.target.closest('.chat-item');
+  if (!chatItem) return;
+  const chatId = chatItem.dataset.chatid;
+  const name = chatItem.querySelector('.chat-name')?.innerText || '';
+  const email = chatItem.querySelector('.chat-email')?.innerText || '';
+  const myuid = getUidFromUrl();
+  // navigate - include chatId so chat screen can use it directly
+  window.location.href = `chatscreen.html?myuid=${encodeURIComponent(myuid)}&chatId=${encodeURIComponent(chatId)}&name=${encodeURIComponent(name)}&email=${encodeURIComponent(email)}`;
+  });
+  
+  /* button wiring */
+  reloadbtn.addEventListener("click", () => getChatUsers(getUidFromUrl()));
+  searchbtn.addEventListener("click", () => searchAndCreateChat());
+  
+  /* init on load */
+  window.addEventListener('load', async () => {
+  const uid = getUidFromUrl();
+  if (!uid) return;
+  await getChatUsers(uid);       // initial one-time load
+  listenToUserChats(uid);        // one listener that skips its initial snapshot
+  });
+  
+  /* ensure cleanup on unload */
+  window.addEventListener('unload', () => {
+  closeUserChatsListener();
+  });
+  
+  
+  function tost(status,title,message){
+	const validStatuses = ["success", "error", "info", "warning"];
+
+  if (!validStatuses.includes(status)) {
+    console.warn(`Invalid toastr status: ${status}. Falling back to "info".`);
+    status = "info";
+  }
+	window.toastr[status](message,title);
+	
+	
+	}
+  </script>
+</body>
+</html>

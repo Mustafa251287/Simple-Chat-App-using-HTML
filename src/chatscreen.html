@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chat Screen</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f9f9f9;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    /* Header */
+    .chat-header {
+      background: #007bff;
+      color: white;
+      padding: 15px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .chat-header button {
+      background: none;
+      border: none;
+      color: white;
+      font-size: 18px;
+      cursor: pointer;
+    }
+
+    .chat-header .chat-info {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .chat-header .chat-name {
+      font-weight: bold;
+      font-size: 16px;
+    }
+
+    .chat-header .chat-email {
+      font-size: 12px;
+      color: #ddd;
+    }
+
+    /* Messages area */
+    .messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 15px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .message {
+      max-width: 70%;
+      padding: 10px;
+      border-radius: 10px;
+      font-size: 14px;
+      line-height: 1.4;
+    }
+
+    .sent {
+      align-self: flex-end;
+      background: #007bff;
+      color: white;
+      border-bottom-right-radius: 0;
+    }
+
+    .received {
+      align-self: flex-start;
+      background: #e5e5ea;
+      color: black;
+      border-bottom-left-radius: 0;
+    }
+
+    /* Input area */
+    .input-area {
+      display: flex;
+      padding: 10px;
+      border-top: 1px solid #ddd;
+      background: white;
+    }
+
+    .input-area input {
+      flex: 1;
+      padding: 10px;
+      border-radius: 20px;
+      border: 1px solid #ccc;
+      outline: none;
+    }
+
+    .input-area button {
+      margin-left: 10px;
+      padding: 10px 15px;
+      border-radius: 20px;
+      border: none;
+      background: #007bff;
+      color: white;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <div class="chat-header">
+    <button onclick="goBack()">←</button>
+    <div class="chat-info">
+      <div class="chat-name" id="chatName">Chat Name</div>
+      <div class="chat-email" id="chatEmail">email@example.com</div>
+    </div>
+  </div>
+
+  <!-- Messages -->
+  <div class="messages" id="messages">
+    <!-- Example messages -->
+   <!-- <div class="message received">Hello, how are you?</div>
+    <div class="message sent">I'm good! How about you?</div>-->
+  </div>
+
+  <!-- Input -->
+  <div class="input-area">
+    <input type="text" id="messageInput" placeholder="Type a message...">
+    <button onclick="sendMessage()">Send</button>
+  </div>
+
+  <script type="module">
+  
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+  import {getFirestore,collection,getDocs,setDoc,onSnapshot,addDoc,deleteDoc, doc,getDoc,updateDoc,query,where,serverTimestamp,orderBy,limit,increment} from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+  
+  
+  const firebaseConfig = {
+  apiKey: "AIzaSyCwR-RFmVdl7gI6mzKgrbATSWruxoe9iAI",
+  authDomain: "printflow-1a422.firebaseapp.com",
+  projectId: "printflow-1a422",
+  storageBucket: "printflow-1a422.appspot.com",
+  messagingSenderId: "254878658055",
+  appId: "1:254878658055:web:b037d34cd93bd686e144a2",
+  measurementId: "G-06XB2WSVD9"
+  };
+  
+  
+  const app=initializeApp(firebaseConfig);
+  const db=getFirestore(app);
+  var myuid=null;
+  var otheruid=null;
+  var chatid=null;
+  let messageUnsubscribe;
+  
+    // Back button → go back to chat list
+    window.goBack=function() {
+      window.location.href = "chat-users.html";
+    }
+
+    // Dummy send message
+  
+  window.addEventListener("unload",()=>{
+  console.log("window is unloaded");
+  stopChatListener();
+  });
+  
+  window.sendMessage=async function() {
+      const input = document.getElementById("messageInput");
+      const text = input.value.trim();
+      if (text === "") return;
+      
+      
+      await saveMessageInFirestore(chatid,myuid,otheruid,text);
+      updateMessageUi(text,"sent");
+      input.value = "";
+    }
+    
+    window.addEventListener('load',function(){
+    const params = new URLSearchParams(window.location.search);
+     myuid=params.get("myuid");
+     var email=params.get("email");
+     var name=params.get("name");
+     
+     document.getElementById("chatName").innerHTML=name;
+     document.getElementById("chatEmail").innerHTML=email;
+    //alert(document.getElementById('chatName'));
+    setTimeout(getAllMessages,2000,myuid,email);
+    
+    });
+    
+    
+    async function getAllMessages(uid,otheremail){
+    var myuid=uid;
+    otheruid=await getUserUidByEmail(otheremail);
+    chatid=await getChatIdWithUser(myuid,otheruid);
+    var messageArray=await getLastMessages(chatid,myuid);
+
+    
+    for(var message of messageArray){
+       if(message["senderId"]===myuid){
+       updateMessageUi(message['text'],"sent");
+       } else {
+       updateMessageUi(message['text'],"received");
+       }
+    }
+    
+     startChatListener(chatid,myuid,updateMessageUi);
+    }
+    
+    async function getUserUidByEmail(email) {
+    const usersRef = collection(db, "users");
+    const q = query(usersRef, where("email", "==", email));
+    const snap = await getDocs(q);
+    
+    if (snap.empty) return null;
+    
+    otheruid=snap.docs[0].id; // user UID is the doc id
+    return snap.docs[0].id;
+    }
+    
+    
+    async function getChatIdWithUser(currentUid, otherUid) {
+    const q = query(collection(db, "chats"), where("users", "array-contains", currentUid));
+    const snap = await getDocs(q);
+    
+    let chatId = null;
+    snap.forEach((doc) => {
+    const data = doc.data();
+    if (data.users.includes(otherUid)) {
+    chatId = doc.id;
+    }
+    });
+    
+    return chatId; // null if no chat exists
+    }
+    
+    
+    async function getLastMessages(chatId, currentUserId) {
+    try {
+    const messagesRef = collection(db, "chats", chatId, "messages");
+    
+    // Latest 10 messages ordered by timestamp
+    const q = query(messagesRef, orderBy("timestamp", "desc"), limit(10));
+    
+    const snapshot = await getDocs(q);
+    
+    // Convert to array and reverse (oldest → newest)
+    const messages = snapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data()
+    })).reverse();
+    
+    // ✅ Reset unread count for this user (since they opened the chat)
+    const chatRef = doc(db, "chats", chatId);
+    await updateDoc(chatRef, {
+    [`unread.${currentUserId}`]: 0
+    });
+    
+    // (Optional) If you want to mark messages as "read"
+    // You could batch update docs where receiverId === currentUserId && status !== "read"
+    
+    return messages;
+    } catch (error) {
+    console.error("Error fetching messages:", error);
+    return [];
+    }
+    }
+    
+    async function saveMessageInFirestore(chatId, senderId, receiverId, text) {
+    if (!text.trim()) return; // don't send empty messages
+    
+    try {
+    const chatRef = doc(db, "chats", chatId);
+    const messageRef = collection(chatRef, "messages");
+    
+    // 1. Add new message to messages subcollection
+    await addDoc(messageRef, {
+    text: text,
+    senderId: senderId,
+    receiverId: receiverId,
+    timestamp: serverTimestamp(),
+    status: "sent"
+    });
+    
+    // 2. Update parent chat document
+    await updateDoc(chatRef, {
+    lastMessage: text,
+    lastMessageTimestamp: serverTimestamp(),
+    [`unread.${receiverId}`]: increment(1) // increment receiver’s unread count
+    });
+    
+    console.log("Message sent & chat updated successfully ✅");
+    } catch (error) {
+    console.error("Error sending message:", error);
+    }
+    }
+    
+    function updateMessageUi(text,status){
+    const messagesDiv = document.getElementById("messages");
+    
+    const newMsg = document.createElement("div");
+    newMsg.classList.add("message", status);
+    newMsg.textContent = text;
+    
+    messagesDiv.appendChild(newMsg);
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+	
+	const timestamp=document.createElement('div');
+	timestamp.classList.add("message", status);
+	timestamp.textContent = '12:20pm';
+	messagesDiv.appendChild(newMsg);
+	
+    }
+    
+    function startChatListener(chatId, currentUserId, onNewMessages) {
+  // Unsubscribe existing listener if any
+  if (messageUnsubscribe) {
+    console.log("🔴 Closing previous listener...");
+    try { messageUnsubscribe(); } catch (e) {}
+    messageUnsubscribe = null;
+  }
+
+  console.log("📡 Starting listener for unread count on chat:", chatId);
+
+  const chatRef = doc(db, "chats", chatId);
+  const messagesRef = collection(db, "chats", chatId, "messages");
+
+  messageUnsubscribe = onSnapshot(chatRef, async (chatSnap) => {
+    if (!chatSnap.exists()) return;
+
+    const chatData = chatSnap.data();
+    const unreadCount = chatData.unread?.[currentUserId] || 0;
+
+    console.log("📦 Unread count changed:", unreadCount);
+
+    if (unreadCount > 0) {
+      try {
+        // Query latest 'unreadCount' messages ordered by timestamp ascending
+        const q = query(messagesRef, orderBy("timestamp", "asc"), limit(unreadCount));
+        const messagesSnap = await getDocs(q);
+
+        console.log(`📨 Fetching latest ${unreadCount} messages`);
+
+        // Clear shown messages if needed or track duplicates outside if required
+        // For now, just send fetched messages to callback
+        messagesSnap.forEach(doc => {
+          const msg = { id: doc.id, ...doc.data() };
+          onNewMessages(msg.text, 'received');
+        });
+
+        // Reset unread count after fetching messages
+        await updateDoc(chatRef, {
+          [`unread.${currentUserId}`]: 0
+        });
+        console.log("✅ Unread count reset for user:", currentUserId);
+
+      } catch (err) {
+        console.error("❌ Error fetching messages or resetting unread count:", err);
+      }
+    } else {
+      console.log("⏭️ No unread messages, no fetch triggered");
+    }
+  });
+}
+
+    
+
+    
+    function stopChatListener() {
+    if (messageUnsubscribe) {
+    console.log("🛑 Stopping listener...");
+    messageUnsubscribe();
+    messageUnsubscribe = null;
+    }
+    }
+  </script>
+</body>
+</html>
